@@ -6,6 +6,7 @@ var passport = require('passport');
 var jwt      = require('jwt-simple');
 
 var User = require('../app/models/user');
+var Device = require('../app/models/device');
 var config = require('../config/database'); // get db config file
 
 // connect to database
@@ -37,7 +38,7 @@ router.post('/signup', function(req, res) {
 });
 
 // route to authenticate a user (POST http://localhost:8080/api/authenticate)
-router.post('/authenticate', function(req, res) {
+router.post('/login', function(req, res) {
   User.findOne({
     name: req.body.name
   }, function(err, user) {
@@ -62,7 +63,7 @@ router.post('/authenticate', function(req, res) {
 });
 
 // route to a restricted info (GET http://localhost:8080/api/memberinfo)
-router.get('/memberinfo', passport.authenticate('jwt', { session: false}), function(req, res) {
+router.get('/authenticate', passport.authenticate('jwt', {session: false}), function(req, res) {
   var token = getToken(req.headers);
   if (token) {
     var decoded = jwt.decode(token, config.secret);
@@ -70,9 +71,9 @@ router.get('/memberinfo', passport.authenticate('jwt', { session: false}), funct
         if (err) throw err;
  
         if (!user) {
-          return res.status(403).send({success: false, msg: 'Authentication failed. User not found.'});
+          return res.status(403).send({success: false, msg: 'Authentication failed. User not found.', user: {}});
         } else {
-          res.json({success: true, msg: 'Welcome in the member area ' + user.name + '!'});
+          res.json({success: true, msg: '', user: {name: user.name}});
         }
     });
   } else {
@@ -80,7 +81,7 @@ router.get('/memberinfo', passport.authenticate('jwt', { session: false}), funct
   }
 });
  
-getToken = function (headers) {
+var getToken = function (headers) {
   if (headers && headers.authorization) {
     var parted = headers.authorization.split(' ');
     if (parted.length === 2) {
@@ -92,5 +93,98 @@ getToken = function (headers) {
     return null;
   }
 };
+
+router.post('/registerToken', passport.authenticate('jwt', {session: false}), function(req, res){
+  var token = getToken(req.headers);
+  if (token) {
+    var decoded = jwt.decode(token, config.secret);
+    User.findById(decoded._id, function(err, user) {
+        if (err) throw err;
+ 
+        if (!user) {
+          return res.status(403).send({success: false, msg: 'Authentication failed. User not found.', user: {}});
+        } else {
+          
+          // get the old and new device token
+          var _token = req.body.device_token,
+          _old_token;
+          if(req.body.old_device_token){
+            _old_token = req.body.old_device_token;
+            console.log(_old_token);
+          }
+          
+          Device.findOne({device_token: _token}, function(err, device){
+            if(err) console.log(err);
+            else if(!device){
+              //start register
+              new Device({
+                owner: user._id,
+                device_token: _token
+              }).save(function(err, device){
+                if (err){
+                  console.log(err);
+                  return res.status(403).json({success: false, msg: 'Failed to register new device.'});
+                }
+                else{
+                  //if got old token
+                  /*if(_old_token){
+                    //search for such device
+                    Device.findOne({device_token: _old_token}, function(err, old_device){
+                      if(err) console.log(err);
+                      else {
+                        //if device exists, remove them and also remove device key from user
+                        old_device.remove(function(err){
+                          if(!err){
+                            //remove device key from user
+                            User.update({_id: user._id}, {$pull: {'devices': old_device._id}}, {upsert: true}, function(err){
+                              if(err) console.log(err)
+                      		  });
+                          }
+                        })
+                      }
+                    });
+                  }*/
+                  
+                  //register new device_token to user
+                  User.update({_id: user._id}, {$push: {devices: device._id}}, {upsert: true}, function(err){
+                		if(err){
+                		  console.log(err);
+                		  return res.status(403).json({success: false, msg: 'Failed to register device to the user.'});
+                		}
+                		else{
+                		  return res.json({success: true, msg: 'Device registered to the user.'});
+                		}
+                	});
+            		}
+            	});
+            }
+            else{
+              //device is already existed, just check user if has the device token registered, if not just update
+              var idx = user.devices.indexOf(device._id);
+              console.log('idx: '+idx);
+              if(idx < 0){
+                //device is not found in user, update
+                User.update({_id: user._id}, {$push: {devices: device._id}}, {upsert: true}, function(err){
+            		    if(err){
+            		      console.log(err);
+            		      return res.status(403).json({success: false, msg: 'Failed to register device.'});
+            		    }
+            		    else{
+            		      return res.json({success: true, msg: 'Device registered to the user.'});
+            		    }
+            		  });
+              }
+              else{
+                //device already registered, just return
+                return res.json({success: true, msg: 'Device already registered to the user.'});
+              }
+            }
+          })
+        }
+    });
+  } else {
+    return res.status(403).send({success: false, msg: 'No token provided.'});
+  }
+})
 
 module.exports = router;

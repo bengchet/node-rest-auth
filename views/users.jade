@@ -1,0 +1,56 @@
+doctype 
+html(lang='en', ng-app='myApp')
+    head
+     title Ionic2 Push Notification Example
+     meta(name='viewport', content='width=device-width, initial-scale=1.0')
+     link(rel='stylesheet', href='/css/bootstrap.min.css')
+     style.
+          body {
+          padding-top: 60px;
+          }
+     script(src='/js/jquery.min.js')
+     script(src='/js/bootstrap.min.js')
+     script(src='/js/angular.min.js')
+    body
+     .container(ng-controller='PushController')
+      .navbar.navbar-fixed-top.navbar-inverse
+       .navbar-header.pull-right
+        a.navbar-brand(href='https://c9.io') Cloud9 IDE
+      .page-header
+       h1 Ionic2 Push Notification Example
+      form(ng-submit='send()')
+       .form-group
+        label(for='person') Person to send notification:
+        select#person.form-control(ng-model="data.person", ng-options="user for user in users")
+         option(value="") --Please select--
+       .form-group
+         label(for='title') Title of Message:
+         input.form-control(placeholder='Message Title',ng-model="data.title")
+         span.glyphicon.glyphicon-ok.form-control-feedback
+       .form-group
+         label(for='body') Content of Message:
+         textarea.form-control(rows='5', placeholder='Content of Message here', ng-model="data.body")
+       .form-group
+         input(type='submit', value='Send Push Notification')
+       #div1 {{message}}
+     script.
+      var app = angular.module('myApp', []);
+      app.controller('PushController', function($scope, $http) {
+      $scope.data={};
+      $scope.users = JSON.parse('!{users}');
+      $scope.message='';
+      $scope.send = function() {
+      //console.log($scope.data);
+      console.log('Sending message');
+      $http({
+      method  : 'GET',
+      url     : '/users/push',
+      params  : $scope.data
+      })
+      .then(function(result){
+      //console.log(result.data);
+      if(result.data.success) $scope.message = 'Successful';
+      else $scope.message = 'Error';
+      });
+      };
+      })

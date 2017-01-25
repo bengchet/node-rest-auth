@@ -14,7 +14,10 @@ var UserSchema = new Schema({
   password: {
         type: String,
         required: true
-    }
+    },
+  devices:[{ type: Schema.Types.ObjectId, ref: 'Device' }],
+},{
+  timestamps: true
 });
  
 UserSchema.pre('save', function (next) {
