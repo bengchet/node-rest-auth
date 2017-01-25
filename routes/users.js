@@ -1,8 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var gcm = require('node-gcm');
-var gcm_api_key = 'AAAAkIf-Hwc:APA91bFR6i40M2Ae9z2RjhI41dMbHstfiwHqz05BINxVdt5flQ4NpzFI--_8ToG4vaBh2KEUT33u4zlLg_Fg_1KD6Epqcurcj4R-dQjClumc6LGt4gCWWT6YBkKmJBI_S4-ovJvm0m9M'; 
-
+var gcm_api_key = process.env.GCM_API_KEY;
 var User = require('../app/models/user');
 var Device = require('../app/models/device');
 
